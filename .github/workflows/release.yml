@@ -51,6 +51,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p gui/src-tauri/binaries
+          node scripts/embed-inject.mjs
           bun build src/index.ts --compile --target=${{ matrix.bun_target }} \
             --outfile gui/src-tauri/binaries/copilot-bridge-${{ matrix.rust_target }}${{ matrix.sidecar_ext }}
 
