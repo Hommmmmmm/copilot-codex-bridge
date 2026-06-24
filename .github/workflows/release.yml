@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            rust_target: aarch64-apple-darwin
+            bun_target: bun-darwin-arm64
+            sidecar_ext: ''
+          - os: windows-11-arm
+            rust_target: aarch64-pc-windows-msvc
+            bun_target: bun-windows-arm64
+            sidecar_ext: '.exe'
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Install CLI deps (for prebuild script + types)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install GUI deps
+        run: pnpm install --frozen-lockfile
+        working-directory: gui
+
+      - name: Build sidecar
+        shell: bash
+        run: |
+          mkdir -p gui/src-tauri/binaries
+          bun build src/index.ts --compile --target=${{ matrix.bun_target }} \
+            --outfile gui/src-tauri/binaries/copilot-bridge-${{ matrix.rust_target }}${{ matrix.sidecar_ext }}
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: gui
+          args: --target ${{ matrix.rust_target }}
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Copilot Codex Bridge ${{ github.ref_name }}'
+          releaseBody: |
+            macOS arm64 (.dmg) 与 Windows arm64 (.exe) 安装包。
+            未代码签名：macOS 首次需右键 → 打开；Windows 需在 SmartScreen 提示中"仍要运行"。
+          releaseDraft: true
+          prerelease: false

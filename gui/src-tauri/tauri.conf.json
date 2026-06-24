@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Copilot Codex Bridge",
+  "version": "0.1.0",
+  "identifier": "com.azenta.copilot-codex-bridge",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "create": false,
+        "label": "main",
+        "title": "Copilot Codex Bridge",
+        "width": 1000,
+        "height": 700,
+        "minWidth": 800,
+        "minHeight": 560
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "nsis"],
+    "externalBin": ["binaries/copilot-bridge"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "GitHub Copilot bridge for Codex.app",
+    "longDescription": "本地代理 + CDP 注入，让 Codex.app 桌面端模型菜单显示所有 GitHub Copilot 订阅模型"
+  }
+}

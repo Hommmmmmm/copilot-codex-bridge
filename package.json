@@ -1,0 +1,42 @@
+{
+  "name": "copilot-codex-bridge",
+  "version": "0.1.0",
+  "description": "本地代理：把 GitHub Copilot 包装成 OpenAI Responses API 给 Codex CLI 使用",
+  "type": "module",
+  "bin": {
+    "copilot-bridge": "./dist/index.js"
+  },
+  "scripts": {
+    "prebuild": "node scripts/embed-inject.mjs",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "build:sidecar:mac": "node scripts/embed-inject.mjs && bun build src/index.ts --compile --target=bun-darwin-arm64 --outfile gui/src-tauri/binaries/copilot-bridge-aarch64-apple-darwin",
+    "build:sidecar:win": "node scripts/embed-inject.mjs && bun build src/index.ts --compile --target=bun-windows-arm64 --outfile gui/src-tauri/binaries/copilot-bridge-aarch64-pc-windows-msvc.exe",
+    "package:mac": "pnpm build:sidecar:mac && cd gui && pnpm install && pnpm tauri build --target aarch64-apple-darwin"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@iarna/toml": "^2.2.5",
+    "commander": "^12.1.0",
+    "hono": "^4.6.14",
+    "open": "^10.1.0",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
