@@ -15,6 +15,7 @@ import {
 import { setupEventListeners, useBridgeStore } from './lib/store'
 
 const PROXY_PORT_KEY = 'copilot-bridge:proxy-port'
+const PROXY_EXPOSE_LAN_KEY = 'copilot-bridge:proxy-expose-lan'
 const DEFAULT_PORT = 8787
 
 function loadPort(): number {
@@ -24,10 +25,15 @@ function loadPort(): number {
   return Number.isFinite(n) && n >= 1024 && n <= 65535 ? n : DEFAULT_PORT
 }
 
+function loadExposeLan(): boolean {
+  return localStorage.getItem(PROXY_EXPOSE_LAN_KEY) === '1'
+}
+
 export default function App() {
   const refreshAll = useBridgeStore((s) => s.refreshAll)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
   const [proxyPort, setProxyPort] = useState<number>(loadPort)
+  const [exposeLan, setExposeLan] = useState<boolean>(loadExposeLan)
 
   // 启动时挂事件 listener + 首次刷新
   useEffect(() => {
@@ -60,15 +66,16 @@ export default function App() {
     localStorage.setItem(PROXY_PORT_KEY, String(port))
   }
 
+  const onExposeLanChange = (next: boolean) => {
+    setExposeLan(next)
+    localStorage.setItem(PROXY_EXPOSE_LAN_KEY, next ? '1' : '0')
+  }
+
   const onLogin = () => {
-    alert('[gui] 点击登录')
-    console.log('[gui] 点击登录')
     wrap('login', () => apiRunLogin())
   }
   const onLogout = async () => {
-    alert('[gui] 点击退出')
-    console.log('[gui] 点击退出')
-    const yes = await ask('确定退出 Copilot 授权？退出后需要重新登录才能使用', {
+    const yes = await ask('确定退出 Copilot 授权？退出后需要重新登录才能使用。', {
       title: '确认退出',
       kind: 'warning',
     })
@@ -77,36 +84,23 @@ export default function App() {
     }
   }
   const onStartProxy = () => {
-    console.log('[gui] 启动代理 port=', proxyPort)
-    wrap('proxyStart', () => apiStartProxy(proxyPort))
+    wrap('proxyStart', () => apiStartProxy(proxyPort, exposeLan))
   }
   const onStopProxy = () => {
-    console.log('[gui] 停止代理')
     wrap('proxyStop', () => apiStopProxy())
   }
   const onApplyModel = (model: string) => {
-    console.log('[gui] 应用模型', model)
     wrap('launch', () => apiLaunchCodex(model))
   }
 
   return (
-    <div
-      style={{
-        background: '#f3f4f6',
-        height: '100vh',
-        padding: 16,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 16,
-        boxSizing: 'border-box',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}
-    >
-      <header style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <h1 style={{ margin: 0, fontSize: 20, color: '#111' }}>Copilot Codex Bridge</h1>
-        <span style={{ fontSize: 12, color: '#9ca3af' }}>
-          GitHub Copilot 模型 → Codex.app 桌面端
-        </span>
+    <div className="app-root">
+      <header className="app-header">
+        <div className="app-header-title">
+          <h1>Copilot Codex Bridge</h1>
+          <span className="subtitle">GitHub Copilot 模型 → Codex.app 桌面端</span>
+        </div>
+        <span className="app-header-meta">v0.1.0</span>
       </header>
 
       <StatusCards
@@ -116,6 +110,8 @@ export default function App() {
         onStopProxy={onStopProxy}
         proxyPort={proxyPort}
         onPortChange={onPortChange}
+        exposeLan={exposeLan}
+        onExposeLanChange={onExposeLanChange}
         busy={busy}
       />
 

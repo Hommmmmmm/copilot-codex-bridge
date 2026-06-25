@@ -80,6 +80,10 @@ pub struct ProxyStatus {
     pub running: bool,
     pub pid: Option<u32>,
     pub port: u16,
+    /// 当前 bind 的 host：127.0.0.1 = 仅本机；0.0.0.0 = 同局域网可访问
+    pub host: String,
+    /// 本机所有非 loopback 的 IPv4 地址，方便 GUI 显示「http://192.168.x.x:port/v1」
+    pub lan_ips: Vec<String>,
 }
 
 #[tauri::command]
@@ -89,7 +93,32 @@ pub async fn proxy_status(state: State<'_, ProcessState>) -> Result<ProxyStatus,
         running: s.proxy.is_some(),
         pid: s.proxy.as_ref().map(|c| c.pid()),
         port: s.proxy_port.unwrap_or(8787),
+        host: s.proxy_host.clone().unwrap_or_else(|| "127.0.0.1".into()),
+        lan_ips: list_lan_ipv4(),
     })
+}
+
+/// 列出所有非 loopback 的 IPv4 地址（macOS：通过解析 `ifconfig` 输出；不引新依赖）
+fn list_lan_ipv4() -> Vec<String> {
+    use std::process::Command;
+    let output = Command::new("ifconfig")
+        .output()
+        .ok()
+        .filter(|o| o.status.success());
+    let Some(out) = output else { return Vec::new(); };
+    let text = String::from_utf8_lossy(&out.stdout);
+    let mut ips = Vec::new();
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        let Some(rest) = trimmed.strip_prefix("inet ") else { continue };
+        // 形如 `inet 192.168.1.5 netmask 0xffffff00 broadcast 192.168.1.255`
+        let Some(ip) = rest.split_whitespace().next() else { continue };
+        if ip == "127.0.0.1" || ip.starts_with("169.254.") {
+            continue;
+        }
+        ips.push(ip.to_string());
+    }
+    ips
 }
 
 #[derive(Serialize)]
@@ -117,6 +146,7 @@ pub async fn codex_status(state: State<'_, ProcessState>) -> Result<CodexStatus,
 #[tauri::command]
 pub async fn start_proxy(
     port: Option<u16>,
+    expose_lan: Option<bool>,
     state: State<'_, ProcessState>,
     app: AppHandle,
 ) -> Result<OpStatus, String> {
@@ -130,7 +160,18 @@ pub async fn start_proxy(
 
     let sidecar = locate_sidecar(&app)?;
     let port = port.unwrap_or(8787);
-    let args = vec!["start".into(), "--port".into(), port.to_string()];
+    let host = if expose_lan.unwrap_or(false) {
+        "0.0.0.0"
+    } else {
+        "127.0.0.1"
+    };
+    let args = vec![
+        "start".into(),
+        "--port".into(),
+        port.to_string(),
+        "--host".into(),
+        host.into(),
+    ];
     let child = spawn_managed(sidecar, args, "proxy".into(), app)
         .await
         .map_err(|e| format!("启动代理失败：{e}"))?;
@@ -139,6 +180,7 @@ pub async fn start_proxy(
         let mut s = state.lock().await;
         s.proxy = Some(child);
         s.proxy_port = Some(port);
+        s.proxy_host = Some(host.to_string());
     }
     Ok(ok())
 }
@@ -269,6 +311,7 @@ pub async fn run_logout(app: AppHandle) -> Result<OpStatus, String> {
 pub async fn run_install(app: AppHandle) -> Result<OpStatus, String> {
     spawn_one_shot(vec!["install".into()], "install", app).await
 }
+
 
 /// 跑一次性 CLI 命令（spawn → 等退出 → 不持有 child）
 /// 关键：必须 wait 进程退出，否则 child drop 时 kill_on_drop=true 会杀掉进程

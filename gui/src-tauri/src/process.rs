@@ -14,6 +14,8 @@ pub struct Processes {
     pub proxy: Option<ManagedChild>,
     /// 代理当前用的端口（启动时记录）
     pub proxy_port: Option<u16>,
+    /// 代理当前 bind 的 host（127.0.0.1 = 仅本机；0.0.0.0 = 局域网开放）
+    pub proxy_host: Option<String>,
     /// `copilot-bridge launch <model>` CDP 注入进程
     pub launch: Option<ManagedChild>,
     /// 当前 launch 用的 model
@@ -99,6 +101,7 @@ pub async fn kill_managed(state: &ProcessState, kind: ProcessKind) -> anyhow::Re
     let target = match kind {
         ProcessKind::Proxy => {
             state.proxy_port = None;
+            state.proxy_host = None;
             state.proxy.take()
         }
         ProcessKind::Launch => {

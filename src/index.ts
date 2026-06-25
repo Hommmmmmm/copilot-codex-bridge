@@ -33,7 +33,8 @@ program
   .command('start')
   .description('启动本地 HTTP 代理（前台）')
   .option('-p, --port <number>', '监听端口', '8787')
-  .action((opts) => startCommand({ port: Number(opts.port) }))
+  .option('--host <ip>', '监听地址。127.0.0.1 = 仅本机；0.0.0.0 = 同局域网可访问', '127.0.0.1')
+  .action((opts) => startCommand({ port: Number(opts.port), host: String(opts.host) }))
 
 // 把代理写入 Codex config
 program

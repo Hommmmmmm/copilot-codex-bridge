@@ -19,39 +19,23 @@ export function ModelSelector({
   }, [codex.currentModel, models, selected])
 
   return (
-    <div
-      style={{
-        background: '#fff',
-        borderRadius: 12,
-        padding: 16,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <h3 style={{ margin: 0, fontSize: 14, color: '#374151' }}>
-          选择模型 ({models.length} 个可用)
-        </h3>
-        <button
-          onClick={refreshModels}
-          style={{
-            fontSize: 11,
-            padding: '2px 8px',
-            border: '1px solid #e5e7eb',
-            background: '#f9fafb',
-            borderRadius: 4,
-            cursor: 'pointer',
-          }}
-        >
+    <div className="card">
+      <div className="card-head">
+        <div className="card-title">
+          <span>选择模型</span>
+          <span className="status-tag" style={{ color: '#475569', borderColor: '#e5e7eb' }}>
+            {models.length} 个
+          </span>
+        </div>
+        <button onClick={refreshModels} className="btn btn-sm">
           刷新
         </button>
       </div>
 
       {models.length === 0 ? (
-        <div style={{ color: '#9ca3af', fontSize: 13, padding: '16px 0' }}>
-          请先启动代理（点上方"启动"按钮）
-        </div>
+        <div className="model-empty">请先启动代理（点上方 “启动” 按钮）</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+        <div className="model-grid">
           {models.map((m) => {
             const isSelected = selected === m.id
             const isCurrent = codex.currentModel === m.id
@@ -59,58 +43,26 @@ export function ModelSelector({
               <button
                 key={m.id}
                 onClick={() => setSelected(m.id)}
-                style={{
-                  textAlign: 'left',
-                  padding: 10,
-                  borderRadius: 8,
-                  border: `1px solid ${isSelected ? '#2563eb' : '#e5e7eb'}`,
-                  background: isSelected ? '#eff6ff' : '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                }}
+                className={`model-tile ${isSelected ? 'model-tile-selected' : ''}`}
               >
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
+                <div className="model-tile-name">
                   {m.name}
-                  {isCurrent && (
-                    <span
-                      style={{
-                        marginLeft: 6,
-                        fontSize: 10,
-                        padding: '1px 4px',
-                        background: '#22c55e',
-                        color: '#fff',
-                        borderRadius: 3,
-                      }}
-                    >
-                      当前
-                    </span>
-                  )}
+                  {isCurrent && <span className="tag-current">当前</span>}
                 </div>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>{m.id}</div>
+                <div className="model-tile-id">{m.id}</div>
               </button>
             )
           })}
         </div>
       )}
 
-      <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button
           onClick={() => selected && onApply(selected)}
           disabled={!selected || applying}
-          style={{
-            padding: '8px 16px',
-            borderRadius: 6,
-            border: 'none',
-            background: !selected || applying ? '#9ca3af' : '#2563eb',
-            color: '#fff',
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: !selected || applying ? 'wait' : 'pointer',
-          }}
+          className="btn btn-primary"
         >
-          {applying ? '应用中（重启 Codex.app）...' : `应用并重启 Codex${selected ? `: ${selected}` : ''}`}
+          {applying ? '应用中（重启 Codex.app）…' : `应用并重启 Codex${selected ? `: ${selected}` : ''}`}
         </button>
       </div>
     </div>

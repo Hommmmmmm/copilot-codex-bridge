@@ -45,7 +45,7 @@ const MAX_LOGS = 1000
 
 export const useBridgeStore = create<BridgeState>((set, get) => ({
   login: { authenticated: false, expiresAt: 0, remainingMinutes: 0 },
-  proxy: { running: false, pid: null, port: 8787 },
+  proxy: { running: false, pid: null, port: 8787, host: '127.0.0.1', lanIps: [] },
   codex: { launchRunning: false, launchPid: null, currentModel: null },
   models: [],
   logs: [],

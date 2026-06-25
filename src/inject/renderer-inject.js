@@ -7,7 +7,7 @@
  * 精简策略：
  *   - 只保留 5 路径联合 patch（Response.json / app-server sendRequest / dispatchEvent / Statsig / React Fiber）
  *   - catalog 从 http://127.0.0.1:8787/v1/model-catalog 拉（不走 CDP binding）
- *   - 删除诊断日志上报、settings 菜单、image overlay、plugin marketplace 等所有非模型相关功能
+ *   - 删除诊断日志上报、settings 菜单、image overlay 等所有非模型相关功能
  *   - codexPlusModelUnlockEnabled() 写死返回 true
  *
  * 工作原理 5 路径：
@@ -379,12 +379,6 @@
 
   function appServerModelRequestMethod(method, params) {
     if (method === 'send-cli-request-for-host' && params?.method) return String(params.method)
-    if (method === 'vscode://codex/list-plugins') return 'list-plugins'
-    if (method === 'vscode://codex/plugin/install') return 'install-plugin'
-    if (method === 'vscode://codex/plugin/uninstall') return 'uninstall-plugin'
-    if (method === 'plugin/list') return 'list-plugins'
-    if (method === 'plugin/install') return 'install-plugin'
-    if (method === 'plugin/uninstall') return 'uninstall-plugin'
     return String(method || '')
   }
 

@@ -1,68 +1,50 @@
 // 状态卡片：3 张并排（认证 / 代理 / Codex 注入）
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useBridgeStore } from '../lib/store'
+
+type Status = 'ok' | 'warn' | 'error' | 'idle'
 
 interface CardProps {
   title: string
-  status: 'ok' | 'warn' | 'error' | 'idle'
+  status: Status
   primary: string
   secondary?: string
   children?: ReactNode
 }
 
+const STATUS_COLOR: Record<Status, string> = {
+  ok: '#16a34a',
+  warn: '#f59e0b',
+  error: '#ef4444',
+  idle: '#9ca3af',
+}
+
+const STATUS_LABEL: Record<Status, string> = {
+  ok: '正常',
+  warn: '注意',
+  error: '异常',
+  idle: '待启动',
+}
+
 function Card({ title, status, primary, secondary, children }: CardProps) {
-  const dot = {
-    ok: '#22c55e',
-    warn: '#eab308',
-    error: '#ef4444',
-    idle: '#9ca3af',
-  }[status]
+  const color = STATUS_COLOR[status]
   return (
-    <div
-      style={{
-        flex: 1,
-        background: '#fff',
-        borderRadius: 12,
-        padding: 16,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#6b7280' }}>
+    <div className="card status-card">
+      <div className="status-card-head">
+        <span className="status-dot" style={{ background: color }} />
+        <span className="status-card-title">{title}</span>
         <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: dot,
-            display: 'inline-block',
-          }}
-        />
-        {title}
+          className="status-tag"
+          style={{ color, borderColor: color + '33' }}
+        >
+          {STATUS_LABEL[status]}
+        </span>
       </div>
-      <div style={{ fontSize: 18, fontWeight: 600, color: '#111' }}>{primary}</div>
-      {secondary && <div style={{ fontSize: 12, color: '#6b7280' }}>{secondary}</div>}
-      {children}
+      <div className="status-card-primary">{primary}</div>
+      {secondary && <div className="status-card-secondary">{secondary}</div>}
+      <div className="status-card-footer">{children}</div>
     </div>
   )
-}
-
-const btnStyle: CSSProperties = {
-  padding: '4px 10px',
-  fontSize: 12,
-  borderRadius: 6,
-  border: '1px solid #e5e7eb',
-  background: '#f9fafb',
-  cursor: 'pointer',
-}
-
-const dangerBtnStyle: CSSProperties = {
-  ...btnStyle,
-  borderColor: '#fecaca',
-  background: '#fef2f2',
-  color: '#b91c1c',
 }
 
 interface Props {
@@ -72,6 +54,8 @@ interface Props {
   onStopProxy: () => void
   proxyPort: number
   onPortChange: (port: number) => void
+  exposeLan: boolean
+  onExposeLanChange: (next: boolean) => void
   busy: Record<string, boolean>
 }
 
@@ -82,16 +66,25 @@ export function StatusCards({
   onStopProxy,
   proxyPort,
   onPortChange,
+  exposeLan,
+  onExposeLanChange,
   busy,
 }: Props) {
   const { login, proxy, codex } = useBridgeStore()
 
+  const loginStatus: Status =
+    login.authenticated && login.remainingMinutes > 0
+      ? 'ok'
+      : login.authenticated
+        ? 'warn'
+        : 'error'
+
   return (
-    <div style={{ display: 'flex', gap: 12 }}>
+    <div className="status-cards">
       {/* 卡片 1：GitHub 授权（含登录 + 退出按钮） */}
       <Card
         title="GitHub 授权"
-        status={login.authenticated && login.remainingMinutes > 0 ? 'ok' : login.authenticated ? 'warn' : 'error'}
+        status={loginStatus}
         primary={
           login.authenticated
             ? login.remainingMinutes > 0
@@ -101,69 +94,72 @@ export function StatusCards({
         }
         secondary={login.authenticated ? '到期会自动续期' : '请先登录 Copilot'}
       >
-        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+        <button
+          onClick={onLogin}
+          disabled={busy.login}
+          className="btn btn-sm"
+        >
+          {busy.login ? '...' : login.authenticated ? '重新登录' : '登录'}
+        </button>
+        {login.authenticated && (
           <button
-            onClick={onLogin}
-            disabled={busy.login}
-            style={{ ...btnStyle, cursor: busy.login ? 'wait' : 'pointer' }}
+            onClick={onLogout}
+            disabled={busy.logout}
+            className="btn btn-sm btn-danger"
           >
-            {busy.login ? '...' : login.authenticated ? '重新登录' : '登录'}
+            {busy.logout ? '...' : '退出'}
           </button>
-          {login.authenticated && (
-            <button
-              onClick={onLogout}
-              disabled={busy.logout}
-              style={{ ...dangerBtnStyle, cursor: busy.logout ? 'wait' : 'pointer' }}
-            >
-              {busy.logout ? '...' : '退出'}
-            </button>
-          )}
-        </div>
+        )}
       </Card>
 
-      {/* 卡片 2：本地代理（含端口输入 + 启停） */}
+      {/* 卡片 2：本地代理（含端口输入 + 启停 + 局域网开关 + LAN 地址） */}
       <Card
         title="本地代理"
         status={proxy.running ? 'ok' : 'idle'}
-        primary={proxy.running ? `运行中 :${proxy.port}` : '未运行'}
+        primary={
+          proxy.running
+            ? proxy.host === '0.0.0.0'
+              ? `运行中 :${proxy.port}（局域网）`
+              : `运行中 :${proxy.port}`
+            : '未运行'
+        }
         secondary={proxy.pid ? `PID ${proxy.pid}` : '设置端口后启动'}
       >
-        <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}>
-          <label style={{ fontSize: 11, color: '#6b7280' }}>端口</label>
-          <input
-            type="number"
-            min={1024}
-            max={65535}
-            value={proxyPort}
-            disabled={proxy.running}
-            onChange={(e) => onPortChange(Number(e.target.value) || 8787)}
-            style={{
-              width: 60,
-              padding: '2px 6px',
-              fontSize: 11,
-              border: '1px solid #e5e7eb',
-              borderRadius: 4,
-              background: proxy.running ? '#f3f4f6' : '#fff',
-            }}
-          />
-          {proxy.running ? (
-            <button
-              onClick={onStopProxy}
-              disabled={busy.proxyStop}
-              style={{ ...btnStyle, cursor: busy.proxyStop ? 'wait' : 'pointer' }}
-            >
-              {busy.proxyStop ? '...' : '停止'}
-            </button>
-          ) : (
-            <button
-              onClick={onStartProxy}
-              disabled={busy.proxyStart}
-              style={{ ...btnStyle, cursor: busy.proxyStart ? 'wait' : 'pointer' }}
-            >
-              {busy.proxyStart ? '...' : '启动'}
-            </button>
-          )}
-        </div>
+        <label className="port-label">端口</label>
+        <input
+          type="number"
+          min={1024}
+          max={65535}
+          value={proxyPort}
+          disabled={proxy.running}
+          onChange={(e) => onPortChange(Number(e.target.value) || 8787)}
+          className="port-input"
+        />
+        {proxy.running ? (
+          <button
+            onClick={onStopProxy}
+            disabled={busy.proxyStop}
+            className="btn btn-sm"
+          >
+            {busy.proxyStop ? '...' : '停止'}
+          </button>
+        ) : (
+          <button
+            onClick={onStartProxy}
+            disabled={busy.proxyStart}
+            className="btn btn-sm btn-primary"
+          >
+            {busy.proxyStart ? '...' : '启动'}
+          </button>
+        )}
+        <ExposeLanToggle
+          checked={exposeLan}
+          disabled={proxy.running}
+          onChange={onExposeLanChange}
+        />
+        {proxy.running && proxy.host === '0.0.0.0' && proxy.lanIps.length > 0 && (
+          <LanAddressList port={proxy.port} ips={proxy.lanIps} />
+        )}
       </Card>
 
       {/* 卡片 3：Codex 注入 */}
@@ -173,6 +169,61 @@ export function StatusCards({
         primary={codex.launchRunning ? '注入运行中' : '未启动'}
         secondary={codex.currentModel ? `当前模型: ${codex.currentModel}` : '选模型后启动'}
       />
+    </div>
+  )
+}
+
+/** 「开放到局域网」开关 —— 决定下次 start 时 bind 0.0.0.0 还是 127.0.0.1 */
+function ExposeLanToggle({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean
+  disabled: boolean
+  onChange: (next: boolean) => void
+}) {
+  return (
+    <label
+      className="lan-toggle"
+      title={
+        disabled
+          ? '代理运行中无法切换，先停止代理'
+          : '开启后下次启动监听 0.0.0.0，同局域网设备可访问'
+      }
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span className="lan-toggle-text">开放到局域网</span>
+    </label>
+  )
+}
+
+/** 列出 http://<lan-ip>:port/v1 供局域网内其他设备复制使用 */
+function LanAddressList({ port, ips }: { port: number; ips: string[] }) {
+  return (
+    <div className="lan-addresses">
+      <span className="lan-addresses-label">局域网地址</span>
+      {ips.map((ip) => {
+        const url = `http://${ip}:${port}/v1`
+        return (
+          <button
+            key={ip}
+            type="button"
+            className="lan-address-pill"
+            onClick={() => {
+              void navigator.clipboard?.writeText(url)
+            }}
+            title="点击复制"
+          >
+            {url}
+          </button>
+        )
+      })}
     </div>
   )
 }
