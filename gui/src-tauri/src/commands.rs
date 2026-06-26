@@ -206,9 +206,15 @@ pub struct ModelInfo {
 }
 
 /// 调代理的 /v1/model-catalog 接口拿模型列表
+/// 端口取自 ProcessState（启动时记录的 proxy_port），不再写死 8787。
 #[tauri::command]
-pub async fn list_models() -> Result<Vec<ModelInfo>, String> {
-    let res = reqwest_get("http://127.0.0.1:8787/v1/model-catalog").await?;
+pub async fn list_models(state: State<'_, ProcessState>) -> Result<Vec<ModelInfo>, String> {
+    let port = {
+        let s = state.lock().await;
+        s.proxy_port.unwrap_or(8787)
+    };
+    let url = format!("http://127.0.0.1:{port}/v1/model-catalog");
+    let res = reqwest_get(&url).await?;
     let json: serde_json::Value = serde_json::from_str(&res).map_err(|e| e.to_string())?;
 
     let mut out = Vec::new();

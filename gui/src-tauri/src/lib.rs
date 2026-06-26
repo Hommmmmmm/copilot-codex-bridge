@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{Manager, WindowEvent};
+use tauri::{Manager, RunEvent, WindowEvent};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tokio::sync::Mutex;
 
@@ -20,8 +20,9 @@ const TRAY_MENU_QUIT: &str = "tray_quit";
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let proc_state: process::ProcessState = Arc::new(Mutex::new(process::Processes::default()));
+    let cleanup_state = proc_state.clone();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(proc_state)
@@ -55,8 +56,33 @@ pub fn run() {
             commands::run_logout,
             commands::run_install,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(move |_app, event| {
+        // 关键：app.exit / Cmd+Q / SIGTERM / 用户关全部窗口都会走到 RunEvent::Exit。
+        // 在这里 sync kill 掉 sidecar，否则 macOS 上不会自动传播给子进程，会留孤儿。
+        if let RunEvent::Exit = event {
+            kill_all_sidecars(&cleanup_state);
+        }
+    });
+}
+
+/// 退出时调：用一个临时 runtime 同步把所有 sidecar 杀掉。
+/// 不能直接 await 因为 RunEvent::Exit 回调是 sync 的。
+fn kill_all_sidecars(state: &process::ProcessState) {
+    let state = state.clone();
+    let handle = std::thread::spawn(move || {
+        let rt = match tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        {
+            Ok(rt) => rt,
+            Err(_) => return,
+        };
+        rt.block_on(process::kill_all(&state));
+    });
+    let _ = handle.join();
 }
 
 /// 注册关窗事件：点 ✕ 弹"退出 / 最小化到托盘"对话框

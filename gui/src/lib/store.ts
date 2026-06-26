@@ -92,8 +92,9 @@ export const useBridgeStore = create<BridgeState>((set, get) => ({
     try {
       const ms = await listModels()
       set({ models: ms })
-    } catch {
-      // 代理没跑起来时会失败，正常
+    } catch (err) {
+      // 代理没跑起来时会失败，正常；但其他错误打到 console 方便排查
+      console.warn('[gui] refreshModels failed:', err)
     }
   },
 

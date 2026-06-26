@@ -115,6 +115,21 @@ pub async fn kill_managed(state: &ProcessState, kind: ProcessKind) -> anyhow::Re
     Ok(())
 }
 
+/// 退出时调：把 state 里所有正在运行的子进程都杀掉。
+/// 跟 kill_managed 不同的是会同时杀 proxy + launch，方便 App 退出钩子一次清理。
+pub async fn kill_all(state: &ProcessState) {
+    let mut state = state.lock().await;
+    if let Some(mut child) = state.proxy.take() {
+        let _ = child.kill().await;
+    }
+    state.proxy_port = None;
+    state.proxy_host = None;
+    if let Some(mut child) = state.launch.take() {
+        let _ = child.kill().await;
+    }
+    state.current_model = None;
+}
+
 #[derive(Clone, Copy)]
 pub enum ProcessKind {
     Proxy,
