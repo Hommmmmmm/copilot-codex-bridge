@@ -22,6 +22,10 @@ jobs:
             rust_target: aarch64-pc-windows-msvc
             bun_target: bun-windows-arm64
             sidecar_ext: '.exe'
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            bun_target: bun-windows-x64
+            sidecar_ext: '.exe'
 
     runs-on: ${{ matrix.os }}
 
@@ -68,7 +72,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Copilot Codex Bridge ${{ github.ref_name }}'
           releaseBody: |
-            macOS arm64 (.dmg) 与 Windows arm64 (.exe) 安装包。
+            macOS arm64 (.dmg)、Windows arm64 与 x64 (.exe) 安装包。
             未代码签名：macOS 首次需右键 → 打开；Windows 需在 SmartScreen 提示中"仍要运行"。
           releaseDraft: true
           prerelease: false
